@@ -32,10 +32,10 @@ export const Route = createFileRoute("/executive-dashboard")({
 });
 
 const DEFAULT_METRICS = {
-  monthlyRevenue: 142500,
-  grossMargin: 68.4,
-  clientSatisfaction: 4.9,
-  projectWinRate: 82,
+  monthlyRevenue: 0,
+  grossMargin: 0,
+  clientSatisfaction: 0,
+  projectWinRate: 0,
 };
 
 export function ExecutiveDashboardPage() {
