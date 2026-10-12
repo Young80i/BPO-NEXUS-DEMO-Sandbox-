@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiWorkspaceRouteImport } from './routes/ai-workspace'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AutomationRouteImport } from './routes/automation'
@@ -28,6 +29,11 @@ import { Route as WebsiteRouteImport } from './routes/website'
 import { Route as ClientsIndexRouteImport } from './routes/clients.index'
 import { Route as ClientsClientIdRouteImport } from './routes/clients.$clientId'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AiWorkspaceRoute = AiWorkspaceRouteImport.update({
   id: '/ai-workspace',
   path: '/ai-workspace',
@@ -120,6 +126,7 @@ const ClientsClientIdRoute = ClientsClientIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
   '/ai-workspace': typeof AiWorkspaceRoute
   '/analytics': typeof AnalyticsRoute
   '/automation': typeof AutomationRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/clients/': typeof ClientsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/ai-workspace': typeof AiWorkspaceRoute
   '/analytics': typeof AnalyticsRoute
   '/automation': typeof AutomationRoute
@@ -161,6 +169,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/ai-workspace': typeof AiWorkspaceRoute
   '/analytics': typeof AnalyticsRoute
   '/automation': typeof AutomationRoute
@@ -183,6 +192,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
     | '/ai-workspace'
     | '/analytics'
     | '/automation'
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/clients/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/ai-workspace'
     | '/analytics'
     | '/automation'
@@ -223,6 +234,7 @@ export interface FileRouteTypes {
     | '/clients'
   id:
     | '__root__'
+    | '/'
     | '/ai-workspace'
     | '/analytics'
     | '/automation'
@@ -244,6 +256,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AiWorkspaceRoute: typeof AiWorkspaceRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AutomationRoute: typeof AutomationRoute
@@ -266,6 +279,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ai-workspace': {
       id: '/ai-workspace'
       path: '/ai-workspace'
@@ -396,6 +416,7 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AiWorkspaceRoute: AiWorkspaceRoute,
   AnalyticsRoute: AnalyticsRoute,
   AutomationRoute: AutomationRoute,
