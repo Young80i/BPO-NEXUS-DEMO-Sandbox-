@@ -40,7 +40,8 @@ const DEFAULT_METRICS = {
 
 export function ExecutiveDashboardPage() {
   const router = useRouter();
-  const { projects } = useProjects();
+  // 1. Pull the 'refresh' function from your context
+  const { projects, refresh } = useProjects(); 
   const [isReloading, setIsReloading] = useState(false);
 
   const [execMetrics, setExecMetrics] = usePersistentState(
@@ -48,28 +49,30 @@ export function ExecutiveDashboardPage() {
     DEFAULT_METRICS
   );
 
-const handleReloadExecutive = async () => {
+  const handleReloadExecutive = async () => {
     setIsReloading(true);
     toast.info("Refreshing executive metrics...");
 
     try {
-      // 1. Add a small artificial delay so the spinner actually has time to render and feel responsive
+      // 2. Add visual delay for the spinner
       await new Promise((resolve) => setTimeout(resolve, 600));
 
+      // 3. Reset local storage metrics safely
       if (typeof window !== "undefined") {
-        // 2. Check for both the raw key and prefixed key to guarantee we catch the data
         const raw = window.localStorage.getItem("bpo-exec-metrics-v1") 
                  || window.localStorage.getItem("bpo-nexus:bpo-exec-metrics-v1");
-                 
         if (raw) {
           setExecMetrics(JSON.parse(raw));
         } else {
-          // 3. If no data exists yet, explicitly reset it to the defaults
           setExecMetrics(DEFAULT_METRICS);
         }
       }
       
-      // 4. Invalidate router to ensure useProjects() and other loaders fetch fresh data
+      // 4. ACTUALLY FETCH THE NEW DATA FROM SUPABASE
+      if (refresh) {
+        await refresh();
+      }
+      
       await router.invalidate();
       toast.success("Executive metrics reloaded!");
     } catch {
@@ -78,6 +81,9 @@ const handleReloadExecutive = async () => {
       setIsReloading(false);
     }
   };
+
+  // ... rest of your component stays exactly the same
+
 
   const totalContractedRevenue = (projects || []).reduce((acc, p) => acc + (p.budget || 0), 0);
   const completedProjectsCount = (projects || []).filter((p) => p.status === "Completed").length;
