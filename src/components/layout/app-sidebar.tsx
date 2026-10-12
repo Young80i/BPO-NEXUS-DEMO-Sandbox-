@@ -19,8 +19,8 @@ import {
 import { cn } from "@/lib/utils";
 
 const main = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Executive Dashboard", url: "/executive-dashboard", icon: BarChart3 },
+  // FIX: Point Dashboard directly to the working route so it clicks instantly and highlights
+  { title: "Dashboard", url: "/executive-dashboard", icon: LayoutDashboard },
   { title: "Projects", url: "/projects", icon: FolderKanban },
   { title: "Clients", url: "/clients", icon: Users },
   { title: "Conversations", url: "/conversations", icon: MessagesSquare, badge: "6" },
