@@ -1,8 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
 @source "../src";
-
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -157,12 +155,12 @@
     border-color: var(--color-border);
   }
 
-body {
-    background-color: var(--background); /* Changed from var(--color-background) */
-    color: var(--foreground);             /* Changed from var(--color-foreground) */
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-}
+  }
 
   h1,
   h2,
