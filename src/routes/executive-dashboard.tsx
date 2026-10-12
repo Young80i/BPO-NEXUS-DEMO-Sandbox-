@@ -48,18 +48,28 @@ export function ExecutiveDashboardPage() {
     DEFAULT_METRICS
   );
 
-  const handleReloadExecutive = async () => {
+const handleReloadExecutive = async () => {
     setIsReloading(true);
     toast.info("Refreshing executive metrics...");
 
     try {
-      // Re-read directly from localStorage if modified
+      // 1. Add a small artificial delay so the spinner actually has time to render and feel responsive
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
       if (typeof window !== "undefined") {
-        const raw = window.localStorage.getItem("bpo-nexus:bpo-exec-metrics-v1");
+        // 2. Check for both the raw key and prefixed key to guarantee we catch the data
+        const raw = window.localStorage.getItem("bpo-exec-metrics-v1") 
+                 || window.localStorage.getItem("bpo-nexus:bpo-exec-metrics-v1");
+                 
         if (raw) {
           setExecMetrics(JSON.parse(raw));
+        } else {
+          // 3. If no data exists yet, explicitly reset it to the defaults
+          setExecMetrics(DEFAULT_METRICS);
         }
       }
+      
+      // 4. Invalidate router to ensure useProjects() and other loaders fetch fresh data
       await router.invalidate();
       toast.success("Executive metrics reloaded!");
     } catch {
