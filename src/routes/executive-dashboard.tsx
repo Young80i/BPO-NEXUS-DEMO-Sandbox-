@@ -108,17 +108,22 @@ export function ExecutiveDashboardPage() {
       />
 
       {/* Executive KPIs */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="surface-card lift p-4 space-y-2">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium">Monthly Revenue Run-Rate</span>
-            <DollarSign className="h-4 w-4 text-emerald-500" />
-          </div>
-          <p className="font-display text-2xl font-bold">
-            ${(execMetrics?.monthlyRevenue || 0).toLocaleString()}
-          </p>
-          <p className="text-[0.72rem] text-emerald-500 font-medium">↑ +14.2% vs last month</p>
-        </div>
+      <div className="surface-card lift p-4 space-y-2">
+  <div className="flex items-center justify-between text-muted-foreground">
+    <span className="text-xs font-medium">Monthly Revenue Run-Rate</span>
+    <DollarSign className="h-4 w-4 text-emerald-500" />
+  </div>
+  <p className="font-display text-2xl font-bold">
+    ${(execMetrics?.monthlyRevenue || 0).toLocaleString()}
+  </p>
+  
+  {/* NEW: Only show the positive trend if revenue is actually greater than 0 */}
+  {(execMetrics?.monthlyRevenue || 0) > 0 ? (
+    <p className="text-[0.72rem] text-emerald-500 font-medium">↑ +14.2% vs last month</p>
+  ) : (
+    <p className="text-[0.72rem] text-muted-foreground">No previous month data</p>
+  )}
+</div>
 
         <div className="surface-card lift p-4 space-y-2">
           <div className="flex items-center justify-between text-muted-foreground">

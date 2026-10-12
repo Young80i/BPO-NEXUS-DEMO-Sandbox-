@@ -67,20 +67,28 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
-                <Settings className="mr-2 h-4 w-4" /> Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  await signOut();
-                  navigate({ to: "/login" });
-                }}
-              >
-                <LogOut className="mr-2 h-4 w-4" /> Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+  <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+  <DropdownMenuSeparator />
+  
+  {/* FIX: Use asChild to let TanStack Router handle the click naturally */}
+  <DropdownMenuItem asChild>
+    <Link to="/settings" className="flex w-full cursor-pointer items-center">
+      <Settings className="mr-2 h-4 w-4" /> Settings
+    </Link>
+  </DropdownMenuItem>
+
+  {/* FIX: Use onSelect instead of onClick for Radix UI dropdown items */}
+  <DropdownMenuItem
+    className="cursor-pointer"
+    onSelect={async (e) => {
+      e.preventDefault(); // Prevents the dropdown from closing before the async function fires
+      await signOut();
+      navigate({ to: "/login" });
+    }}
+  >
+    <LogOut className="mr-2 h-4 w-4" /> Sign out
+  </DropdownMenuItem>
+</DropdownMenuContent>
           </DropdownMenu>
         ) : (
           <Button variant="outline" size="sm" className="ml-1 gap-1.5" asChild>
