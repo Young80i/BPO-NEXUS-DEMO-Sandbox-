@@ -40,8 +40,7 @@ const DEFAULT_METRICS = {
 
 export function ExecutiveDashboardPage() {
   const router = useRouter();
-  // 1. Pull the 'refresh' function from your context
-  const { projects, refresh } = useProjects(); 
+  const { projects, refresh } = useProjects();
   const [isReloading, setIsReloading] = useState(false);
 
   const [execMetrics, setExecMetrics] = usePersistentState(
@@ -54,10 +53,9 @@ export function ExecutiveDashboardPage() {
     toast.info("Refreshing executive metrics...");
 
     try {
-      // 2. Add visual delay for the spinner
+      // Add a small artificial delay so the spinner actually has time to render and feel responsive
       await new Promise((resolve) => setTimeout(resolve, 600));
 
-      // 3. Reset local storage metrics safely
       if (typeof window !== "undefined") {
         const raw = window.localStorage.getItem("bpo-exec-metrics-v1") 
                  || window.localStorage.getItem("bpo-nexus:bpo-exec-metrics-v1");
@@ -68,7 +66,7 @@ export function ExecutiveDashboardPage() {
         }
       }
       
-      // 4. ACTUALLY FETCH THE NEW DATA FROM SUPABASE
+      // Fetch fresh data from Supabase context
       if (refresh) {
         await refresh();
       }
@@ -81,9 +79,6 @@ export function ExecutiveDashboardPage() {
       setIsReloading(false);
     }
   };
-
-  // ... rest of your component stays exactly the same
-
 
   const totalContractedRevenue = (projects || []).reduce((acc, p) => acc + (p.budget || 0), 0);
   const completedProjectsCount = (projects || []).filter((p) => p.status === "Completed").length;
@@ -108,22 +103,21 @@ export function ExecutiveDashboardPage() {
       />
 
       {/* Executive KPIs */}
-      <div className="surface-card lift p-4 space-y-2">
-  <div className="flex items-center justify-between text-muted-foreground">
-    <span className="text-xs font-medium">Monthly Revenue Run-Rate</span>
-    <DollarSign className="h-4 w-4 text-emerald-500" />
-  </div>
-  <p className="font-display text-2xl font-bold">
-    ${(execMetrics?.monthlyRevenue || 0).toLocaleString()}
-  </p>
-  
-  {/* NEW: Only show the positive trend if revenue is actually greater than 0 */}
-  {(execMetrics?.monthlyRevenue || 0) > 0 ? (
-    <p className="text-[0.72rem] text-emerald-500 font-medium">↑ +14.2% vs last month</p>
-  ) : (
-    <p className="text-[0.72rem] text-muted-foreground">No previous month data</p>
-  )}
-</div>
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="surface-card lift p-4 space-y-2">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-medium">Monthly Revenue Run-Rate</span>
+            <DollarSign className="h-4 w-4 text-emerald-500" />
+          </div>
+          <p className="font-display text-2xl font-bold">
+            ${(execMetrics?.monthlyRevenue || 0).toLocaleString()}
+          </p>
+          {(execMetrics?.monthlyRevenue || 0) > 0 ? (
+            <p className="text-[0.72rem] text-emerald-500 font-medium">↑ +14.2% vs last month</p>
+          ) : (
+            <p className="text-[0.72rem] text-muted-foreground">No previous month data</p>
+          )}
+        </div>
 
         <div className="surface-card lift p-4 space-y-2">
           <div className="flex items-center justify-between text-muted-foreground">
