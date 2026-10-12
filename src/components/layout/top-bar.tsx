@@ -82,10 +82,10 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
                   e.preventDefault();
                   try {
                     await signOut();
+                    // Native router navigation
+                    navigate({ to: "/login", replace: true });
                   } catch (err) {
                     console.error("Sign out error:", err);
-                  } finally {
-                    window.location.href = "/login";
                   }
                 }}
               >
@@ -94,13 +94,10 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="ml-1 gap-1.5" 
-            onClick={() => { window.location.href = "/login"; }}
-          >
-            <LogIn className="h-4 w-4" /> Sign in
+          <Button variant="outline" size="sm" className="ml-1 gap-1.5" asChild>
+            <Link to="/login">
+              <LogIn className="h-4 w-4" /> Sign in
+            </Link>
           </Button>
         )}
       </div>
