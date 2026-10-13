@@ -1,4 +1,8 @@
-import { PRESET_PROVIDERS, type AIProviderConfig } from "@/routes/settings";
+import { PRESET_PROVIDERS, type AIProviderConfig } from "../src/routes/settings";
+
+export const config = {
+  runtime: 'edge', // This is the magic line that prevents Vercel 10-second timeouts!
+};
 
 interface ProviderRoute {
   endpoint: string;
@@ -82,22 +86,27 @@ async function executeCall(provider: AIProviderConfig, prompt: string) {
   return route.parseResponse(data);
 }
 
-// POST handler for Jarvis requests
-export async function POST(req: Request) {
+// VERCEL DEFAULT EXPORT HANDLER
+export default async function handler(req: Request) {
+  // 1. Vercel requires us to manually block non-POST requests here
+  if (req.method !== 'POST') {
+    return Response.json({ error: 'Method Not Allowed' }, { status: 405 });
+  }
+
   try {
     const { prompt, primaryId, fallbackId } = await req.json();
 
     const primary = PRESET_PROVIDERS.find((p) => p.id === primaryId) ?? PRESET_PROVIDERS[0];
     const fallback = PRESET_PROVIDERS.find((p) => p.id === fallbackId) ?? PRESET_PROVIDERS[1];
 
-    // 1. Attempt primary provider call
+    // 2. Attempt primary provider call
     try {
       const responseText = await executeCall(primary, prompt);
       return Response.json({ text: responseText, providerUsed: primary.name });
     } catch (primaryError: any) {
       console.warn(`[Jarvis Failover] Primary (${primary.name}) failed:`, primaryError.message);
       
-      // 2. Automatic fallback execution on rate limit or API failure
+      // 3. Automatic fallback execution on rate limit or API failure
       const fallbackText = await executeCall(fallback, prompt);
       return Response.json({ 
         text: fallbackText, 
