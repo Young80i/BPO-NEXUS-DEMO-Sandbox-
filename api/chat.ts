@@ -9,20 +9,19 @@ interface AIProviderConfig {
 }
 
 const PRESET_PROVIDERS: AIProviderConfig[] = [
+  { id: "gemini-flash", name: "Gemini", defaultModel: "gemini-2.0-flash" },
   { id: "nemotron-openrouter", name: "Nemotron", defaultModel: "nvidia/nemotron-4-340b-instruct" },
-  { id: "gemini-flash", name: "Gemini", defaultModel: "gemini-1.5-flash" },
   { id: "claude-anthropic", name: "Claude", defaultModel: "claude-3-5-sonnet-20241022" }
 ];
 
 interface ProviderRoute {
-  endpoint: string;
+  endpoint: (model: string) => string;
   apiKey: string | undefined;
   headers: (key: string) => Record<string, string>;
   formatBody: (model: string, prompt: any) => any;
   parseResponse: (data: any) => string;
 }
 
-// ULTRA-SAFE STRING EXTRACTOR
 const extractText = (prompt: any): string => {
   if (typeof prompt === 'string') return prompt;
   if (!prompt) return "Hello";
@@ -43,7 +42,7 @@ const extractMessages = (prompt: any) => {
 
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
   "nemotron-openrouter": {
-    endpoint: "https://openrouter.ai/api/v1/chat/completions",
+    endpoint: () => "https://openrouter.ai/api/v1/chat/completions",
     apiKey: process.env.OPENROUTER_API_KEY,
     headers: (key) => ({
       Authorization: `Bearer ${key}`,
@@ -59,7 +58,8 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
   },
 
   "gemini-flash": {
-    endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+    // Updated to point to the active gemini-2.0-flash endpoint dynamically
+    endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent`,
     apiKey: process.env.GEMINI_API_KEY,
     headers: () => ({
       "Content-Type": "application/json",
@@ -71,14 +71,14 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
   },
 
   "claude-anthropic": {
-    endpoint: "https://api.anthropic.com/v1/messages",
+    endpoint: () => "https://api.anthropic.com/v1/messages",
     apiKey: process.env.ANTHROPIC_API_KEY,
     headers: (key) => ({
       "x-api-key": key,
       "anthropic-version": "2023-06-01",
       "Content-Type": "application/json",
     }),
-    formatBody: (model, prompt) => ({
+    formatBody: (_, prompt) => ({
       model: "claude-3-5-sonnet-20241022",
       max_tokens: 2048,
       messages: extractMessages(prompt),
@@ -95,9 +95,10 @@ async function executeCall(provider: AIProviderConfig, prompt: any) {
     throw new Error(`Missing API Key in Vercel Environment Variables for ${provider.name}`);
   }
 
+  const rawEndpoint = route.endpoint(provider.defaultModel);
   const url = provider.id === "gemini-flash" 
-    ? `${route.endpoint}?key=${route.apiKey}`
-    : route.endpoint;
+    ? `${rawEndpoint}?key=${route.apiKey}`
+    : rawEndpoint;
 
   const res = await fetch(url, {
     method: "POST",
