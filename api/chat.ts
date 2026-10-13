@@ -9,7 +9,7 @@ interface AIProviderConfig {
 }
 
 const PRESET_PROVIDERS: AIProviderConfig[] = [
-  { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-2.0-flash" },
+  { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-3.8-flash" },
   { id: "openrouter", name: "OpenRouter Free Auto-Router", defaultModel: "openrouter/free" }
 ];
 
@@ -48,7 +48,7 @@ const extractText = (prompt: any): string => {
 
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
   "gemini": {
-    endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent`,
+    endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-3.8-flash'}:generateContent`,
     apiKey: process.env.GEMINI_API_KEY,
     headers: () => ({
       "Content-Type": "application/json",
@@ -96,7 +96,7 @@ async function executeCall(provider: AIProviderConfig, prompt: any) {
     : rawEndpoint;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
 
   try {
     const res = await fetch(url, {
