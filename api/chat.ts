@@ -1,15 +1,13 @@
 export const config = {
-  runtime: 'edge', // Run on Edge network to bypass 10-second timeout
+  runtime: 'edge', 
 };
 
-// 1. Define types locally so we don't import from the React frontend
 interface AIProviderConfig {
   id: string;
   name: string;
   defaultModel: string;
 }
 
-// 2. Define the fallback providers locally
 const PRESET_PROVIDERS: AIProviderConfig[] = [
   { id: "nemotron-openrouter", name: "Nemotron", defaultModel: "nvidia/nemotron-4-340b-instruct" },
   { id: "gemini-flash", name: "Gemini", defaultModel: "gemini-1.5-flash" },
@@ -20,11 +18,25 @@ interface ProviderRoute {
   endpoint: string;
   apiKey: string | undefined;
   headers: (key: string) => Record<string, string>;
-  formatBody: (model: string, prompt: string) => any;
+  formatBody: (model: string, prompt: any) => any;
   parseResponse: (data: any) => string;
 }
 
-// 3. Provider routing configuration
+// HELPER 1: Forces output to be a plain string (For Gemini)
+const extractText = (prompt: any): string => {
+  if (typeof prompt === 'string') return prompt;
+  if (Array.isArray(prompt)) {
+    return prompt.map(m => m.content || JSON.stringify(m)).join('\n');
+  }
+  return JSON.stringify(prompt);
+};
+
+// HELPER 2: Forces output to be an array of messages (For Claude & Nemotron)
+const extractMessages = (prompt: any) => {
+  if (Array.isArray(prompt)) return prompt;
+  return [{ role: "user", content: extractText(prompt) }];
+};
+
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
   "nemotron-openrouter": {
     endpoint: "https://openrouter.ai/api/v1/chat/completions",
@@ -37,7 +49,7 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
     }),
     formatBody: (model, prompt) => ({
       model: model || "nvidia/nemotron-4-340b-instruct",
-      messages: [{ role: "user", content: prompt }],
+      messages: extractMessages(prompt),
     }),
     parseResponse: (data) => data.choices?.[0]?.message?.content || "",
   },
@@ -49,7 +61,8 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
       "Content-Type": "application/json",
     }),
     formatBody: (_, prompt) => ({
-      contents: [{ parts: [{ text: prompt }] }],
+      // Gemini strictly requires a plain string here
+      contents: [{ parts: [{ text: extractText(prompt) }] }],
     }),
     parseResponse: (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || "",
   },
@@ -65,13 +78,13 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
     formatBody: (model, prompt) => ({
       model: "claude-3-5-sonnet-20241022",
       max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
+      messages: extractMessages(prompt),
     }),
     parseResponse: (data) => data.content?.[0]?.text || "",
   },
 };
 
-async function executeCall(provider: AIProviderConfig, prompt: string) {
+async function executeCall(provider: AIProviderConfig, prompt: any) {
   const route = PROVIDER_ROUTES[provider.id];
   if (!route) throw new Error(`Unknown provider configuration: ${provider.id}`);
 
@@ -98,7 +111,6 @@ async function executeCall(provider: AIProviderConfig, prompt: string) {
   return route.parseResponse(data);
 }
 
-// VERCEL DEFAULT EXPORT HANDLER
 export default async function handler(req: Request) {
   if (req.method !== 'POST') {
     return Response.json({ error: 'Method Not Allowed' }, { status: 405 });
