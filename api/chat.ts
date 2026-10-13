@@ -1,8 +1,20 @@
-import { PRESET_PROVIDERS, type AIProviderConfig } from "../src/routes/settings";
-
 export const config = {
-  runtime: 'edge', // This is the magic line that prevents Vercel 10-second timeouts!
+  runtime: 'edge', // Run on Edge network to bypass 10-second timeout
 };
+
+// 1. Define types locally so we don't import from the React frontend
+interface AIProviderConfig {
+  id: string;
+  name: string;
+  defaultModel: string;
+}
+
+// 2. Define the fallback providers locally
+const PRESET_PROVIDERS: AIProviderConfig[] = [
+  { id: "nemotron-openrouter", name: "Nemotron", defaultModel: "nvidia/nemotron-4-340b-instruct" },
+  { id: "gemini-flash", name: "Gemini", defaultModel: "gemini-1.5-flash" },
+  { id: "claude-anthropic", name: "Claude", defaultModel: "claude-3-5-sonnet-20241022" }
+];
 
 interface ProviderRoute {
   endpoint: string;
@@ -12,7 +24,7 @@ interface ProviderRoute {
   parseResponse: (data: any) => string;
 }
 
-// Hardcoded provider routing configuration
+// 3. Provider routing configuration
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
   "nemotron-openrouter": {
     endpoint: "https://openrouter.ai/api/v1/chat/completions",
@@ -24,7 +36,7 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
       "X-Title": "BPO Nexus Jarvis",
     }),
     formatBody: (model, prompt) => ({
-      model,
+      model: model || "nvidia/nemotron-4-340b-instruct",
       messages: [{ role: "user", content: prompt }],
     }),
     parseResponse: (data) => data.choices?.[0]?.message?.content || "",
@@ -64,7 +76,7 @@ async function executeCall(provider: AIProviderConfig, prompt: string) {
   if (!route) throw new Error(`Unknown provider configuration: ${provider.id}`);
 
   if (!route.apiKey) {
-    throw new Error(`Missing API Key in .env.local for ${provider.name}`);
+    throw new Error(`Missing API Key in Vercel Environment Variables for ${provider.name}`);
   }
 
   const url = provider.id === "gemini-flash" 
@@ -88,7 +100,6 @@ async function executeCall(provider: AIProviderConfig, prompt: string) {
 
 // VERCEL DEFAULT EXPORT HANDLER
 export default async function handler(req: Request) {
-  // 1. Vercel requires us to manually block non-POST requests here
   if (req.method !== 'POST') {
     return Response.json({ error: 'Method Not Allowed' }, { status: 405 });
   }
@@ -99,14 +110,12 @@ export default async function handler(req: Request) {
     const primary = PRESET_PROVIDERS.find((p) => p.id === primaryId) ?? PRESET_PROVIDERS[0];
     const fallback = PRESET_PROVIDERS.find((p) => p.id === fallbackId) ?? PRESET_PROVIDERS[1];
 
-    // 2. Attempt primary provider call
     try {
       const responseText = await executeCall(primary, prompt);
       return Response.json({ text: responseText, providerUsed: primary.name });
     } catch (primaryError: any) {
       console.warn(`[Jarvis Failover] Primary (${primary.name}) failed:`, primaryError.message);
       
-      // 3. Automatic fallback execution on rate limit or API failure
       const fallbackText = await executeCall(fallback, prompt);
       return Response.json({ 
         text: fallbackText, 
