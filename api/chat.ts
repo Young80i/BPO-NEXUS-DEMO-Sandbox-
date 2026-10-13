@@ -95,8 +95,9 @@ async function executeCall(provider: AIProviderConfig, prompt: any) {
     ? `${rawEndpoint}?key=${route.apiKey}`
     : rawEndpoint;
 
+  // Expanded timeout to 20 seconds to comfortably accommodate free-tier queue wait times
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
 
   try {
     const res = await fetch(url, {
