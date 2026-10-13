@@ -96,11 +96,7 @@ export function CtoAssistant() {
     // 1. Casual Chat Interception
     const casualGreetings = ["hi", "hello", "hey", "sup", "yo", "good morning", "good evening", "how are you"];
     if (casualGreetings.includes(lower) || lower === "hi" || lower === "hello") {
-      const userMsg: ChatMessage = {
-        id: `msg_${Date.now()}_u`,
-        role: "user",
-        content: trimmed,
-      };
+      const userMsg: ChatMessage = { id: `msg_${Date.now()}_u`, role: "user", content: trimmed };
       const assistantMsg: ChatMessage = {
         id: `msg_${Date.now()}_a`,
         role: "assistant",
@@ -110,33 +106,47 @@ export function CtoAssistant() {
       return;
     }
 
-    // 2. Full Autonomous Provisioning Route
-    if (lower.includes("create project") || lower.includes("sarah jenkins") || lower.includes("provision")) {
-      const userMsg: ChatMessage = {
-        id: `msg_${Date.now()}_u`,
-        role: "user",
-        content: trimmed,
-      };
-
+    // 2. TRUE AUTONOMOUS PROVISIONING (Dynamic Extraction)
+    if (lower.includes("provision") || lower.includes("client name:")) {
+      const userMsg: ChatMessage = { id: `msg_${Date.now()}_u`, role: "user", content: trimmed };
       setMessages((prev) => [...prev, userMsg]);
       setLoading(true);
 
       try {
+        // Dynamic Regex Extractors
+        const extract = (regex: RegExp, fallback: string) => {
+          const match = trimmed.match(regex);
+          return match && match[1] ? match[1].trim() : fallback;
+        };
+
+        const dynClient = extract(/- Client Name:\s*(.+)/i, "Acme Corp Client");
+        const dynCompany = extract(/- Company:\s*(.+)/i, "Acme Corporation");
+        const dynUsername = extract(/- Freelancer Username:\s*(.+)/i, "@client_vip");
+        const dynEmail = extract(/- Email:\s*(.+)/i, "client@freelancer.io");
+        const dynTitle = extract(/- Project Title:\s*(.+)/i, "Autonomous Web Application");
+        
+        const budgetMatch = extract(/- Budget:\s*\$?([\d,]+)/i, "5000");
+        const dynBudget = parseInt(budgetMatch.replace(/,/g, ""), 10) || 5000;
+        
+        const timelineMatch = extract(/- Timeline:\s*(\d+)/i, "30");
+        const dynTimelineDays = parseInt(timelineMatch, 10) || 30;
+
+        // Step A: Create or find the dynamically extracted client
         let activeClient = (clients || []).find(
-          (c) => c.name?.toLowerCase().includes("sarah") || c.company?.toLowerCase().includes("cloudpay")
+          (c) => c.name?.toLowerCase().includes(dynClient.toLowerCase()) || c.company?.toLowerCase().includes(dynCompany.toLowerCase())
         );
 
         if (!activeClient) {
           activeClient = await createClient({
-            name: "Sarah Jenkins",
-            company: "CloudPay Inc.",
+            name: dynClient,
+            company: dynCompany,
             country: "United States",
             countryCode: "US",
-            freelancerUsername: "@sjenkins",
-            email: "sarah@cloudpay.io",
+            freelancerUsername: dynUsername,
+            email: dynEmail,
             phone: "",
             totalProjects: 1,
-            totalRevenue: 3500,
+            totalRevenue: dynBudget,
             rating: 5,
             notes: "Provisioned via JARVIS Autonomous Core",
             attachments: [],
@@ -145,72 +155,75 @@ export function CtoAssistant() {
           });
         }
 
+        // Step B: Create the dynamic project
         const createdRes: any = await createProject({
-          name: "AI Invoice SaaS MVP",
+          name: dynTitle,
           clientId: activeClient.id,
-          description: "Full-stack SaaS MVP for automated invoice processing using AI (Document AI / OCR).",
-          budget: 3500,
+          description: "Auto-provisioned requirements directly from Freelancer brief.",
+          budget: dynBudget,
           currency: "USD",
           priority: "High",
           status: "Discovery",
           startDate: new Date().toISOString().slice(0, 10),
-          dueDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-          estimatedHours: 120,
+          dueDate: new Date(Date.now() + dynTimelineDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          estimatedHours: Math.round(dynTimelineDays * 3), // Estimate 3 hrs/day
           actualHours: 0,
-          stack: ["Lovable", "Node.js", "Supabase"],
+          stack: ["React", "Node.js", "Supabase"],
           repository: "",
-          aiTool: "Lovable, Claude",
-          notes: "Autonomous full-agency deployment via JARVIS CTO",
+          aiTool: "Jarvis CTO",
+          notes: "Autonomous full-agency deployment",
           progress: 0,
           archived: false,
         });
 
-        let targetProjectId =
-          createdRes?.id ||
-          (Array.isArray(createdRes) ? createdRes[0]?.id : undefined);
+        let targetProjectId = createdRes?.id || (Array.isArray(createdRes) ? createdRes[0]?.id : undefined);
 
         if (!targetProjectId) {
           const { data: fetchedProj } = await supabase
             .from("projects")
             .select("id")
-            .eq("name", "AI Invoice SaaS MVP")
+            .eq("name", dynTitle)
             .order("created_at", { ascending: false })
             .limit(1)
             .single();
-
           targetProjectId = fetchedProj?.id;
         }
 
         if (targetProjectId) {
+          // Step C: Generate Dynamic Milestones based on Timeline & Budget
           await supabase.from("milestones").insert([
             {
               project_id: targetProjectId,
-              title: "Phase 1: Architecture Blueprint & Technical Docs",
-              description: "System architecture, API specifications, and database schema setup.",
-              budget: 500,
+              title: "Phase 1: Architecture & Data Schema Blueprint",
+              description: "System architecture, API specifications, and Supabase database schema setup.",
+              budget: Math.round(dynBudget * 0.2), // 20% of budget
               status: "In Progress",
-              progress: 20,
+              progress: 10,
               approval: "Pending",
               due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-              deliverables: [
-                { label: "Architecture Diagram", done: true },
-                { label: "Database Schema", done: false },
-              ],
+              deliverables: [{ label: "Architecture Diagram", done: true }, { label: "Database Schema", done: false }],
             },
             {
               project_id: targetProjectId,
-              title: "Phase 2: Lovable UI Scaffold & Component Tree",
-              description: "Frontend SPA scaffolded via Lovable with authentication, upload zone, and invoice list.",
-              budget: 1000,
+              title: `Phase 2: Frontend Scaffold & ${dynTitle.split(" ")[0]} Components`,
+              description: "Frontend SPA scaffolded via React with authentication and core dashboard UI.",
+              budget: Math.round(dynBudget * 0.4), // 40% of budget
               status: "Planning",
               progress: 0,
               approval: "Not Submitted",
-              due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-              deliverables: [
-                { label: "Auth Flow UI", done: false },
-                { label: "Invoice Upload Zone", done: false },
-                { label: "Extracted Data View", done: false },
-              ],
+              due_date: new Date(Date.now() + Math.round(dynTimelineDays / 2) * 24 * 60 * 60 * 1000).toISOString(),
+              deliverables: [{ label: "Auth Flow UI", done: false }, { label: "Core Feature UI", done: false }],
+            },
+            {
+              project_id: targetProjectId,
+              title: "Phase 3: Backend Logic & Production Handover",
+              description: "API integrations, end-to-end testing, and client preview deployment.",
+              budget: Math.round(dynBudget * 0.4), // 40% of budget
+              status: "Planning",
+              progress: 0,
+              approval: "Not Submitted",
+              due_date: new Date(Date.now() + dynTimelineDays * 24 * 60 * 60 * 1000).toISOString(),
+              deliverables: [{ label: "End-to-End Testing", done: false }, { label: "Deployment Handover", done: false }],
             },
           ]);
 
@@ -223,19 +236,16 @@ export function CtoAssistant() {
           role: "assistant",
           content: `⚡ **FULL AGENCY WORKSPACE PROVISIONED!**\n\n` +
                    `1. **CRM Client:** ${activeClient.name} (${activeClient.company})\n` +
-                   `2. **Project Record:** AI Invoice SaaS MVP ($3,500 Budget Locked)\n` +
-                   `3. **Milestones Generated:** 4 delivery phases inserted into \`public.milestones\`\n\n` +
-                   `Select "AI Invoice SaaS MVP" in your Milestones dropdown—the entire roadmap is live!`,
+                   `2. **Project Record:** ${dynTitle} ($${dynBudget.toLocaleString()} Budget Locked)\n` +
+                   `3. **Milestones Generated:** 3 adaptive delivery phases mapped to your ${dynTimelineDays}-day timeline.\n\n` +
+                   `Select "${dynTitle}" in your Milestones dropdown—the roadmap is live!`,
         };
 
         setMessages((prev) => [...prev, successMsg]);
-        toast.success("Client, Project, Milestones & Tasks synced with database!");
+        toast.success(`Provisioned ${dynClient} and ${dynTitle} successfully!`);
       } catch (err: any) {
         console.error("Jarvis provisioning error:", err);
-        setMessages((prev) => [
-          ...prev,
-          { id: `msg_${Date.now()}_a`, role: "assistant", content: `⚠️ **Provisioning Warning:** ${err.message}` }
-        ]);
+        setMessages((prev) => [...prev, { id: `msg_${Date.now()}_a`, role: "assistant", content: `⚠️ **Provisioning Warning:** ${err.message}` }]);
       } finally {
         setLoading(false);
       }
@@ -243,11 +253,7 @@ export function CtoAssistant() {
     }
 
     // 3. Standard AI Chat Route via /api/chat
-    const userMsg: ChatMessage = {
-      id: `msg_${Date.now()}_u`,
-      role: "user",
-      content: trimmed,
-    };
+    const userMsg: ChatMessage = { id: `msg_${Date.now()}_u`, role: "user", content: trimmed };
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
@@ -280,10 +286,7 @@ export function CtoAssistant() {
     } catch (err: any) {
       console.error("AI chat error:", err);
       toast.error(err.message || "The AI CTO could not respond.");
-      setMessages((prev) => [
-        ...prev,
-        { id: `msg_${Date.now()}_a`, role: "assistant", content: `⚠️ Error: ${err.message}` }
-      ]);
+      setMessages((prev) => [...prev, { id: `msg_${Date.now()}_a`, role: "assistant", content: `⚠️ Error: ${err.message}` }]);
     } finally {
       setLoading(false);
     }
@@ -324,18 +327,10 @@ export function CtoAssistant() {
             </p>
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="New conversation"
-              onClick={() => {
-                setMessages([]);
-                toast.success("Started a new conversation");
-              }}
-            >
+            <Button variant="ghost" size="icon-sm" onClick={() => { setMessages([]); toast.success("Started a new conversation"); }}>
               <RotateCcw className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Close assistant" onClick={() => setOpen(false)}>
+            <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -358,10 +353,7 @@ export function CtoAssistant() {
                     <button
                       key={a.label}
                       type="button"
-                      onClick={() => {
-                        setInput(a.prompt);
-                        textareaRef.current?.focus();
-                      }}
+                      onClick={() => { setInput(a.prompt); textareaRef.current?.focus(); }}
                       className="lift flex items-center gap-2.5 rounded-xl border border-border bg-surface-2/60 px-3.5 py-2.5 text-left text-xs font-medium transition-colors hover:border-primary/40"
                     >
                       <Sparkle className="h-3.5 w-3.5 shrink-0 text-primary" />
@@ -375,10 +367,7 @@ export function CtoAssistant() {
             {messages.map((message) => {
               const isUser = message.role === "user";
               return (
-                <div
-                  key={message.id}
-                  className={cn("flex gap-3 text-xs", isUser ? "justify-end" : "justify-start")}
-                >
+                <div key={message.id} className={cn("flex gap-3 text-xs", isUser ? "justify-end" : "justify-start")}>
                   {!isUser && (
                     <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg brand-gradient text-primary-foreground shadow-sm">
                       <Bot className="h-3.5 w-3.5" />
@@ -387,9 +376,7 @@ export function CtoAssistant() {
                   <div
                     className={cn(
                       "rounded-2xl px-4 py-3 max-w-[85%] leading-relaxed shadow-sm",
-                      isUser
-                        ? "bg-primary text-primary-foreground rounded-br-xs"
-                        : "bg-surface-2 border border-border text-foreground rounded-bl-xs"
+                      isUser ? "bg-primary text-primary-foreground rounded-br-xs" : "bg-surface-2 border border-border text-foreground rounded-bl-xs"
                     )}
                   >
                     <div className="whitespace-pre-wrap">{message.content}</div>
@@ -436,10 +423,7 @@ export function CtoAssistant() {
 
         <div className="shrink-0 border-t border-border bg-surface p-3 rounded-b-2xl">
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void handleSend();
-            }}
+            onSubmit={(e) => { e.preventDefault(); void handleSend(); }}
             className="flex items-end gap-2 rounded-xl border border-border bg-surface-2 p-2 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15"
           >
             <textarea
@@ -447,22 +431,14 @@ export function CtoAssistant() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleSend();
-                }
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void handleSend(); }
               }}
               placeholder="Paste Freelancer.com brief or prompt Jarvis…"
               rows={2}
               disabled={loading}
               className="max-h-24 w-full resize-none bg-transparent px-2 py-1.5 text-xs outline-none text-foreground placeholder:text-muted-foreground"
             />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={!input.trim() || loading}
-              className="h-8 w-8 shrink-0 p-0 rounded-lg brand-gradient text-primary-foreground cursor-pointer"
-            >
+            <Button type="submit" size="sm" disabled={!input.trim() || loading} className="h-8 w-8 shrink-0 p-0 rounded-lg brand-gradient text-primary-foreground cursor-pointer">
               <Send className="h-3.5 w-3.5" />
             </Button>
           </form>
