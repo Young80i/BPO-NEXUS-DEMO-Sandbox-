@@ -22,19 +22,23 @@ interface ProviderRoute {
   parseResponse: (data: any) => string;
 }
 
-// HELPER 1: Forces output to be a plain string (For Gemini)
+// ULTRA-SAFE STRING EXTRACTOR
 const extractText = (prompt: any): string => {
   if (typeof prompt === 'string') return prompt;
-  if (Array.isArray(prompt)) {
-    return prompt.map(m => m.content || JSON.stringify(m)).join('\n');
+  if (!prompt) return "Hello";
+  if (typeof prompt === 'object') {
+    if (typeof prompt.content === 'string') return prompt.content;
+    if (typeof prompt.prompt === 'string') return prompt.prompt;
+    if (Array.isArray(prompt)) {
+      return prompt.map(m => m.content || m.text || JSON.stringify(m)).join('\n');
+    }
   }
-  return JSON.stringify(prompt);
+  return String(prompt);
 };
 
-// HELPER 2: Forces output to be an array of messages (For Claude & Nemotron)
 const extractMessages = (prompt: any) => {
-  if (Array.isArray(prompt)) return prompt;
-  return [{ role: "user", content: extractText(prompt) }];
+  const text = extractText(prompt);
+  return [{ role: "user", content: text }];
 };
 
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
@@ -61,7 +65,6 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
       "Content-Type": "application/json",
     }),
     formatBody: (_, prompt) => ({
-      // Gemini strictly requires a plain string here
       contents: [{ parts: [{ text: extractText(prompt) }] }],
     }),
     parseResponse: (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || "",
@@ -117,18 +120,19 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const { prompt, primaryId, fallbackId } = await req.json();
+    const body = await req.json();
+    const rawPrompt = body.prompt ?? body.message ?? body;
 
-    const primary = PRESET_PROVIDERS.find((p) => p.id === primaryId) ?? PRESET_PROVIDERS[0];
-    const fallback = PRESET_PROVIDERS.find((p) => p.id === fallbackId) ?? PRESET_PROVIDERS[1];
+    const primary = PRESET_PROVIDERS.find((p) => p.id === body.primaryId) ?? PRESET_PROVIDERS[0];
+    const fallback = PRESET_PROVIDERS.find((p) => p.id === body.fallbackId) ?? PRESET_PROVIDERS[1];
 
     try {
-      const responseText = await executeCall(primary, prompt);
+      const responseText = await executeCall(primary, rawPrompt);
       return Response.json({ text: responseText, providerUsed: primary.name });
     } catch (primaryError: any) {
       console.warn(`[Jarvis Failover] Primary (${primary.name}) failed:`, primaryError.message);
       
-      const fallbackText = await executeCall(fallback, prompt);
+      const fallbackText = await executeCall(fallback, rawPrompt);
       return Response.json({ 
         text: fallbackText, 
         providerUsed: fallback.name, 
