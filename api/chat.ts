@@ -9,7 +9,7 @@ interface AIProviderConfig {
 }
 
 const PRESET_PROVIDERS: AIProviderConfig[] = [
-  { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-3.8-flash" },
+  { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-2.0-flash" },
   { id: "openrouter", name: "OpenRouter Free Auto-Router", defaultModel: "openrouter/free" }
 ];
 
@@ -48,7 +48,7 @@ const extractText = (prompt: any): string => {
 
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
   "gemini": {
-    endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-3.8-flash'}:generateContent`,
+    endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent`,
     apiKey: process.env.GEMINI_API_KEY,
     headers: () => ({
       "Content-Type": "application/json",
@@ -72,7 +72,7 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
       "X-Title": "BPO Nexus Jarvis",
     }),
     formatBody: (_, prompt) => ({
-      model: "openrouter/free", // Automatically selects a live free model pool
+      model: "openrouter/free",
       messages: [{ role: "user", content: extractText(prompt) }],
       max_tokens: 1024,
     }),
@@ -141,23 +141,33 @@ export default async function handler(req: Request) {
     const primary = PRESET_PROVIDERS.find((p) => p.id === body.primaryId) ?? PRESET_PROVIDERS[0];
     const fallback = PRESET_PROVIDERS.find((p) => p.id === body.fallbackId) ?? PRESET_PROVIDERS[1];
 
+    let responseText = "";
+    let providerUsedName = primary.name;
+    let wasFallbackUsed = false;
+
     try {
-      const responseText = await executeCall(primary, rawPrompt);
-      return Response.json({ text: responseText, providerUsed: primary.name });
+      responseText = await executeCall(primary, rawPrompt);
     } catch (primaryError: any) {
       console.warn(`[Jarvis Failover Triggered] Primary (${primary.name}) failed:`, primaryError.message);
       
       try {
-        const fallbackText = await executeCall(fallback, rawPrompt);
-        return Response.json({ 
-          text: fallbackText, 
-          providerUsed: fallback.name, 
-          wasFallback: true 
-        });
+        responseText = await executeCall(fallback, rawPrompt);
+        providerUsedName = fallback.name;
+        wasFallbackUsed = true;
       } catch (fallbackError: any) {
         throw new Error(`All providers failed. Primary: ${primaryError.message} | Fallback: ${fallbackError.message}`);
       }
     }
+
+    return Response.json({ 
+      text: responseText,
+      message: responseText,
+      reply: responseText,
+      response: responseText,
+      providerUsed: providerUsedName, 
+      wasFallback: wasFallbackUsed 
+    });
+
   } catch (err: any) {
     return Response.json({ error: err.message || "All API providers failed." }, { status: 500 });
   }
