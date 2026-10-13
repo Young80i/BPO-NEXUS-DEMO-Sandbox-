@@ -10,7 +10,7 @@ interface AIProviderConfig {
 
 const PRESET_PROVIDERS: AIProviderConfig[] = [
   { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-3.8-flash" },
-  { id: "openrouter", name: "NVIDIA Nemotron", defaultModel: "nvidia/nemotron-3-super-120b-a12b:free" }
+  { id: "openrouter", name: "DeepSeek via OpenRouter", defaultModel: "deepseek/deepseek-chat:free" }
 ];
 
 interface ProviderRoute {
@@ -48,7 +48,6 @@ const extractText = (prompt: any): string => {
 
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
   "gemini": {
-    // Updated to point directly to the current active Gemini 3.8 Flash model
     endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-3.8-flash'}:generateContent`,
     apiKey: process.env.GEMINI_API_KEY,
     headers: () => ({
@@ -73,7 +72,7 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
       "X-Title": "BPO Nexus Jarvis",
     }),
     formatBody: (model, prompt) => ({
-      model: model || "nvidia/nemotron-3-super-120b-a12b:free",
+      model: model || "deepseek/deepseek-chat:free",
       messages: [{ role: "user", content: extractText(prompt) }],
       max_tokens: 1024,
     }),
@@ -146,7 +145,7 @@ export default async function handler(req: Request) {
       const responseText = await executeCall(primary, rawPrompt);
       return Response.json({ text: responseText, providerUsed: primary.name });
     } catch (primaryError: any) {
-      console.warn(`[Jarvis Failover] Primary (${primary.name}) failed:`, primaryError.message);
+      console.warn(`[Jarvis Failover Triggered] Primary (${primary.name}) failed:`, primaryError.message);
       
       try {
         const fallbackText = await executeCall(fallback, rawPrompt);
