@@ -10,8 +10,8 @@ interface AIProviderConfig {
 
 const PRESET_PROVIDERS: AIProviderConfig[] = [
   { id: "gemini-flash", name: "Gemini", defaultModel: "gemini-2.0-flash" },
-  { id: "nemotron-openrouter", name: "Nemotron", defaultModel: "nvidia/nemotron-4-340b-instruct" },
-  { id: "claude-anthropic", name: "Claude", defaultModel: "claude-3-5-sonnet-20241022" }
+  { id: "claude-anthropic", name: "Claude", defaultModel: "claude-3-5-sonnet-20241022" },
+  { id: "nemotron-openrouter", name: "Nemotron", defaultModel: "nvidia/nemotron-3-ultra-550b-a55b:free" }
 ];
 
 interface ProviderRoute {
@@ -51,14 +51,13 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
       "X-Title": "BPO Nexus Jarvis",
     }),
     formatBody: (model, prompt) => ({
-      model: model || "nvidia/nemotron-4-340b-instruct",
+      model: model || "nvidia/nemotron-3-ultra-550b-a55b:free",
       messages: extractMessages(prompt),
     }),
     parseResponse: (data) => data.choices?.[0]?.message?.content || "",
   },
 
   "gemini-flash": {
-    // Updated to point to the active gemini-2.0-flash endpoint dynamically
     endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent`,
     apiKey: process.env.GEMINI_API_KEY,
     headers: () => ({
