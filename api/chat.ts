@@ -23,16 +23,29 @@ interface ProviderRoute {
   parseResponse: (data: any) => string;
 }
 
+// BULLETPROOF TEXT EXTRACTOR: Unpacks any object wrappers to prevent [object Object]
 const extractText = (prompt: any): string => {
   if (typeof prompt === 'string') return prompt;
   if (!prompt) return "Hello";
+  
   if (typeof prompt === 'object') {
+    if (typeof prompt.message === 'string') return prompt.message;
+    if (typeof prompt.text === 'string') return prompt.text;
     if (typeof prompt.content === 'string') return prompt.content;
     if (typeof prompt.prompt === 'string') return prompt.prompt;
+    
     if (Array.isArray(prompt)) {
-      return prompt.map(m => m.content || m.text || JSON.stringify(m)).join('\n');
+      return prompt.map(m => m.content || m.text || m.message || JSON.stringify(m)).join('\n');
     }
+    
+    try {
+      const stringified = JSON.stringify(prompt);
+      if (stringified !== '{}' && stringified !== '[object Object]') {
+        return stringified;
+      }
+    } catch (e) {}
   }
+  
   return String(prompt);
 };
 
