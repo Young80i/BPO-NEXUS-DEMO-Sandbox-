@@ -8,10 +8,11 @@ interface AIProviderConfig {
   defaultModel: string;
 }
 
+// Matches your frontend settings.tsx preset providers exactly
 const PRESET_PROVIDERS: AIProviderConfig[] = [
-  { id: "gemini-flash", name: "Gemini", defaultModel: "gemini-2.0-flash" },
-  { id: "claude-anthropic", name: "Claude", defaultModel: "claude-3-5-sonnet-20241022" },
-  { id: "nemotron-openrouter", name: "Nemotron", defaultModel: "nvidia/nemotron-3-ultra-550b-a55b:free" }
+  { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-2.0-flash" },
+  { id: "openrouter", name: "NVIDIA Nemotron", defaultModel: "nvidia/nemotron-3-super-120b-a12b:free" },
+  { id: "cohere", name: "Command R+", defaultModel: "command-r-plus" }
 ];
 
 interface ProviderRoute {
@@ -41,7 +42,7 @@ const extractMessages = (prompt: any) => {
 };
 
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
-  "nemotron-openrouter": {
+  "openrouter": {
     endpoint: () => "https://openrouter.ai/api/v1/chat/completions",
     apiKey: process.env.OPENROUTER_API_KEY,
     headers: (key) => ({
@@ -51,13 +52,13 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
       "X-Title": "BPO Nexus Jarvis",
     }),
     formatBody: (model, prompt) => ({
-      model: model || "nvidia/nemotron-3-ultra-550b-a55b:free",
+      model: model || "nvidia/nemotron-3-super-120b-a12b:free",
       messages: extractMessages(prompt),
     }),
     parseResponse: (data) => data.choices?.[0]?.message?.content || "",
   },
 
-  "gemini-flash": {
+  "gemini": {
     endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent`,
     apiKey: process.env.GEMINI_API_KEY,
     headers: () => ({
@@ -69,20 +70,18 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
     parseResponse: (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || "",
   },
 
-  "claude-anthropic": {
-    endpoint: () => "https://api.anthropic.com/v1/messages",
-    apiKey: process.env.ANTHROPIC_API_KEY,
+  "cohere": {
+    endpoint: () => "https://api.cohere.ai/v1/chat",
+    apiKey: process.env.COHERE_API_KEY,
     headers: (key) => ({
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
+      Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     }),
-    formatBody: (_, prompt) => ({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 2048,
-      messages: extractMessages(prompt),
+    formatBody: (model, prompt) => ({
+      model: model || "command-r-plus",
+      message: extractText(prompt),
     }),
-    parseResponse: (data) => data.content?.[0]?.text || "",
+    parseResponse: (data) => data.text || "",
   },
 };
 
@@ -91,11 +90,11 @@ async function executeCall(provider: AIProviderConfig, prompt: any) {
   if (!route) throw new Error(`Unknown provider configuration: ${provider.id}`);
 
   if (!route.apiKey) {
-    throw new Error(`Missing API Key in Vercel Environment Variables for ${provider.name}`);
+    throw new Error(`Missing API Key in Vercel Environment Variables for ${provider.name} (${provider.envKeyName || 'API Key'})`);
   }
 
   const rawEndpoint = route.endpoint(provider.defaultModel);
-  const url = provider.id === "gemini-flash" 
+  const url = provider.id === "gemini" 
     ? `${rawEndpoint}?key=${route.apiKey}`
     : rawEndpoint;
 
