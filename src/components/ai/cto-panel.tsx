@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Copy, RotateCcw, Sparkle, X, CheckCircle2, Zap, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
