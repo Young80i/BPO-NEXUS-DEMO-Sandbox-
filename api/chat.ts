@@ -10,8 +10,7 @@ interface AIProviderConfig {
 
 const PRESET_PROVIDERS: AIProviderConfig[] = [
   { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-2.0-flash" },
-  { id: "openrouter", name: "NVIDIA Nemotron", defaultModel: "nvidia/nemotron-3-super-120b-a12b:free" },
-  { id: "cohere", name: "Command R+", defaultModel: "command-r-plus" }
+  { id: "openrouter", name: "NVIDIA Nemotron", defaultModel: "nvidia/nemotron-3-super-120b-a12b:free" }
 ];
 
 interface ProviderRoute {
@@ -47,13 +46,22 @@ const extractText = (prompt: any): string => {
   return String(prompt);
 };
 
-const extractMessages = (prompt: any) => {
-  const text = extractText(prompt);
-  // Keep system overhead low to prevent timeouts
-  return [{ role: "user", content: text }];
-};
-
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
+  "gemini": {
+    endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent`,
+    apiKey: process.env.GEMINI_API_KEY,
+    headers: () => ({
+      "Content-Type": "application/json",
+    }),
+    formatBody: (_, prompt) => ({
+      contents: [{ parts: [{ text: extractText(prompt) }] }],
+      generationConfig: { maxOutputTokens: 1024 },
+    }),
+    parseResponse: (data) => {
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    },
+  },
+
   "openrouter": {
     endpoint: () => "https://openrouter.ai/api/v1/chat/completions",
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -65,38 +73,12 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
     }),
     formatBody: (model, prompt) => ({
       model: model || "nvidia/nemotron-3-super-120b-a12b:free",
-      messages: extractMessages(prompt),
-      max_tokens: 800, // Hard limit to ensure fast response times
+      messages: [{ role: "user", content: extractText(prompt) }],
+      max_tokens: 1024,
     }),
-    parseResponse: (data) => data.choices?.[0]?.message?.content || "",
-  },
-
-  "gemini": {
-    endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent`,
-    apiKey: process.env.GEMINI_API_KEY,
-    headers: () => ({
-      "Content-Type": "application/json",
-    }),
-    formatBody: (_, prompt) => ({
-      contents: [{ parts: [{ text: extractText(prompt) }] }],
-      generationConfig: { maxOutputTokens: 800 },
-    }),
-    parseResponse: (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || "",
-  },
-
-  "cohere": {
-    endpoint: () => "https://api.cohere.ai/v1/chat",
-    apiKey: process.env.COHERE_API_KEY,
-    headers: (key) => ({
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    }),
-    formatBody: (_, prompt) => ({
-      model: "command-r-plus",
-      message: extractText(prompt),
-      max_tokens: 800,
-    }),
-    parseResponse: (data) => data.text || "",
+    parseResponse: (data) => {
+      return data.choices?.[0]?.message?.content || "";
+    },
   },
 };
 
@@ -113,9 +95,8 @@ async function executeCall(provider: AIProviderConfig, prompt: any) {
     ? `${rawEndpoint}?key=${route.apiKey}`
     : rawEndpoint;
 
-  // Implement a strict 8-second controller timeout to force failover before Vercel crashes
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
     const res = await fetch(url, {
@@ -132,11 +113,17 @@ async function executeCall(provider: AIProviderConfig, prompt: any) {
     }
 
     const data = await res.json();
-    return route.parseResponse(data);
+    const parsedText = route.parseResponse(data);
+    
+    if (!parsedText || parsedText.trim() === "") {
+      throw new Error(`Provider ${provider.name} returned an empty text body.`);
+    }
+
+    return parsedText;
   } catch (err: any) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new Error(`Provider ${provider.name} timed out after 8 seconds.`);
+      throw new Error(`Provider ${provider.name} timed out.`);
     }
     throw err;
   }
@@ -158,7 +145,7 @@ export default async function handler(req: Request) {
       const responseText = await executeCall(primary, rawPrompt);
       return Response.json({ text: responseText, providerUsed: primary.name });
     } catch (primaryError: any) {
-      console.warn(`[Jarvis Failover Triggered] Primary (${primary.name}) failed:`, primaryError.message);
+      console.warn(`[Jarvis Failover] Primary (${primary.name}) failed:`, primaryError.message);
       
       try {
         const fallbackText = await executeCall(fallback, rawPrompt);

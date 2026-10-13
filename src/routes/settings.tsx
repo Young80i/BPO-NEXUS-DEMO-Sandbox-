@@ -51,18 +51,18 @@ export interface AIProviderConfig {
 
 export const PRESET_PROVIDERS: AIProviderConfig[] = [
   {
-    id: "openrouter",
-    name: "NVIDIA Nemotron 3 Super via OpenRouter",
-    providerLabel: "OpenRouter AI",
-    defaultModel: "nvidia/nemotron-3-super-120b-a12b:free",
-    envKeyName: "OPENROUTER_API_KEY",
-  },
-  {
     id: "gemini",
     name: "Gemini Flash via Google AI",
     providerLabel: "Google AI Studio",
     defaultModel: "gemini-2.0-flash",
     envKeyName: "GEMINI_API_KEY",
+  },
+  {
+    id: "openrouter",
+    name: "NVIDIA Nemotron via OpenRouter",
+    providerLabel: "OpenRouter AI",
+    defaultModel: "nvidia/nemotron-3-super-120b-a12b:free",
+    envKeyName: "OPENROUTER_API_KEY",
   },
   {
     id: "cohere",
