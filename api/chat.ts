@@ -10,7 +10,7 @@ interface AIProviderConfig {
 
 const PRESET_PROVIDERS: AIProviderConfig[] = [
   { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-3.8-flash" },
-  { id: "openrouter", name: "DeepSeek via OpenRouter", defaultModel: "deepseek/deepseek-chat:free" }
+  { id: "openrouter", name: "OpenRouter Free Auto-Router", defaultModel: "openrouter/free" }
 ];
 
 interface ProviderRoute {
@@ -71,8 +71,8 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
       "HTTP-Referer": "https://bponexus.io",
       "X-Title": "BPO Nexus Jarvis",
     }),
-    formatBody: (model, prompt) => ({
-      model: model || "deepseek/deepseek-chat:free",
+    formatBody: (_, prompt) => ({
+      model: "openrouter/free", // Automatically selects a live free model pool
       messages: [{ role: "user", content: extractText(prompt) }],
       max_tokens: 1024,
     }),
