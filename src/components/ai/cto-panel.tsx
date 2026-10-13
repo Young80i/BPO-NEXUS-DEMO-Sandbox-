@@ -1,6 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { useEffect, useRef, useState } from "react";
 import { Bot, Copy, RotateCcw, Sparkle, X, CheckCircle2, Zap, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -21,45 +19,40 @@ import { buildSnapshot } from "@/lib/ai-context";
 
 const STORAGE_KEY = "bpo-cto-chat";
 
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  providerUsed?: string;
+  wasFallback?: boolean;
+}
+
 const quickActions = [
   { label: "What should I work on today?", prompt: "Given my workspace, what is the single most important thing I should do right now? Then list the next two." },
   { label: "Analyse a Freelancer brief", prompt: "I'm going to paste a Freelancer.com project description. Analyse it fully with summary, requirements, stack, structure, difficulty, timeline, milestones, tasks, risks and deliverables:\n\n" },
   { label: "Next step for my riskiest project", prompt: "Which project is most at risk right now, why, and what is the exact next step? Tell me which tool to use." },
 ];
 
-function loadMessages(): UIMessage[] {
+function loadMessages(): ChatMessage[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as UIMessage[]) : [];
+    return raw ? (JSON.parse(raw) as ChatMessage[]) : [];
   } catch {
     return [];
   }
 }
 
-function textOf(message: UIMessage) {
-  return message.parts
-    .map((p) => ("text" in p && typeof p.text === "string" ? p.text : ""))
-    .join("");
-}
-
 export function CtoAssistant() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [initial] = useState<UIMessage[]>(() => loadMessages());
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadMessages());
+  const [loading, setLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { projects, create: createProject, refresh: refreshProjects } = useProjects();
   const { clients, create: createClient } = useClients();
   const { refresh: refreshMilestones } = useSupabaseMilestones();
-
-  const transport = useMemo(() => new DefaultChatTransport({ api: "/api/chat" }), []);
-  const { messages, sendMessage, status, setMessages, error } = useChat({
-    id: "bpo-cto",
-    messages: initial,
-    transport,
-    onError: (e) => toast.error(e.message || "The AI CTO could not respond."),
-  });
 
   useEffect(() => {
     try {
@@ -95,7 +88,7 @@ export function CtoAssistant() {
 
   const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed || loading) return;
     const lower = trimmed.toLowerCase();
 
     setInput("");
@@ -103,15 +96,15 @@ export function CtoAssistant() {
     // 1. Casual Chat Interception
     const casualGreetings = ["hi", "hello", "hey", "sup", "yo", "good morning", "good evening", "how are you"];
     if (casualGreetings.includes(lower) || lower === "hi" || lower === "hello") {
-      const userMsg: UIMessage = {
+      const userMsg: ChatMessage = {
         id: `msg_${Date.now()}_u`,
         role: "user",
-        parts: [{ type: "text", text: trimmed }],
+        content: trimmed,
       };
-      const assistantMsg: UIMessage = {
+      const assistantMsg: ChatMessage = {
         id: `msg_${Date.now()}_a`,
         role: "assistant",
-        parts: [{ type: "text", text: "Hey boss! Jarvis online. Ready to auto-provision workspace items or dive into code." }],
+        content: "Hey boss! Jarvis online. Ready to auto-provision workspace items or dive into code.",
       };
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       return;
@@ -119,16 +112,16 @@ export function CtoAssistant() {
 
     // 2. Full Autonomous Provisioning Route
     if (lower.includes("create project") || lower.includes("sarah jenkins") || lower.includes("provision")) {
-      const userMsg: UIMessage = {
+      const userMsg: ChatMessage = {
         id: `msg_${Date.now()}_u`,
         role: "user",
-        parts: [{ type: "text", text: trimmed }],
+        content: trimmed,
       };
 
       setMessages((prev) => [...prev, userMsg]);
+      setLoading(true);
 
       try {
-        // Step A: Find or Create Client in Supabase
         let activeClient = (clients || []).find(
           (c) => c.name?.toLowerCase().includes("sarah") || c.company?.toLowerCase().includes("cloudpay")
         );
@@ -152,7 +145,6 @@ export function CtoAssistant() {
           });
         }
 
-        // Step B: Create Project in Supabase
         const createdRes: any = await createProject({
           name: "AI Invoice SaaS MVP",
           clientId: activeClient.id,
@@ -173,7 +165,6 @@ export function CtoAssistant() {
           archived: false,
         });
 
-        // Robust ID Resolution
         let targetProjectId =
           createdRes?.id ||
           (Array.isArray(createdRes) ? createdRes[0]?.id : undefined);
@@ -191,8 +182,7 @@ export function CtoAssistant() {
         }
 
         if (targetProjectId) {
-          // Step C: Insert Milestones
-          const { error: milestoneErr } = await supabase.from("milestones").insert([
+          await supabase.from("milestones").insert([
             {
               project_id: targetProjectId,
               title: "Phase 1: Architecture Blueprint & Technical Docs",
@@ -222,106 +212,81 @@ export function CtoAssistant() {
                 { label: "Extracted Data View", done: false },
               ],
             },
-            {
-              project_id: targetProjectId,
-              title: "Phase 3: Node.js & Document AI OCR Engine",
-              description: "Backend service integrating Google Document AI / Azure Form Recognizer for invoice extraction.",
-              budget: 1200,
-              status: "Planning",
-              progress: 0,
-              approval: "Not Submitted",
-              due_date: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000).toISOString(),
-              deliverables: [
-                { label: "OCR Parsing Pipeline", done: false },
-                { label: "Storage Bucket Integration", done: false },
-                { label: "CSV Export Endpoint", done: false },
-              ],
-            },
-            {
-              project_id: targetProjectId,
-              title: "Phase 4: QA, Auth & Production Handover",
-              description: "End-to-end testing, user management controls, and client preview deployment.",
-              budget: 800,
-              status: "Planning",
-              progress: 0,
-              approval: "Not Submitted",
-              due_date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
-              deliverables: [
-                { label: "End-to-End Testing", done: false },
-                { label: "Deployment & Documentation", done: false },
-              ],
-            },
-          ]);
-
-          if (milestoneErr) {
-            console.error("Milestone insertion error:", milestoneErr);
-          }
-
-          // Step D: Insert Tasks
-          await supabase.from("tasks").insert([
-            {
-              project_id: targetProjectId,
-              title: "Scaffold React SPA in Lovable (Auth, Dashboard, Upload UI)",
-              status: "In Progress",
-              priority: "High",
-            },
-            {
-              project_id: targetProjectId,
-              title: "Configure Supabase Auth & PDF Storage Bucket",
-              status: "Todo",
-              priority: "High",
-            },
-            {
-              project_id: targetProjectId,
-              title: "Integrate OCR parsing API (Google Document AI / Azure)",
-              status: "Todo",
-              priority: "Critical",
-            },
-            {
-              project_id: targetProjectId,
-              title: "Build Invoice Details view & CSV Export pipeline",
-              status: "Todo",
-              priority: "Medium",
-            },
           ]);
 
           if (typeof refreshMilestones === "function") await refreshMilestones();
           if (typeof refreshProjects === "function") await refreshProjects();
         }
 
-        const successMsg: UIMessage = {
+        const successMsg: ChatMessage = {
           id: `msg_${Date.now()}_a`,
           role: "assistant",
-          parts: [{
-            type: "text",
-            text: `⚡ **FULL AGENCY WORKSPACE PROVISIONED!**\n\n` +
-                  `1. **CRM Client:** ${activeClient.name} (${activeClient.company})\n` +
-                  `2. **Project Record:** AI Invoice SaaS MVP ($3,500 Budget Locked)\n` +
-                  `3. **Milestones Generated:** 4 delivery phases inserted into \`public.milestones\`\n` +
-                  `4. **Tasks Spawned:** 4 sprint tickets logged in \`public.tasks\`\n\n` +
-                  `Select "AI Invoice SaaS MVP" in your Milestones dropdown—the entire roadmap is live!`
-          }],
+          content: `⚡ **FULL AGENCY WORKSPACE PROVISIONED!**\n\n` +
+                   `1. **CRM Client:** ${activeClient.name} (${activeClient.company})\n` +
+                   `2. **Project Record:** AI Invoice SaaS MVP ($3,500 Budget Locked)\n` +
+                   `3. **Milestones Generated:** 4 delivery phases inserted into \`public.milestones\`\n\n` +
+                   `Select "AI Invoice SaaS MVP" in your Milestones dropdown—the entire roadmap is live!`,
         };
 
         setMessages((prev) => [...prev, successMsg]);
         toast.success("Client, Project, Milestones & Tasks synced with database!");
-      } catch (err) {
+      } catch (err: any) {
         console.error("Jarvis provisioning error:", err);
-        const errorMsg: UIMessage = {
-          id: `msg_${Date.now()}_a`,
-          role: "assistant",
-          parts: [{
-            type: "text",
-            text: `⚠️ **Provisioning Warning:** ${err instanceof Error ? err.message : "Error syncing database."}`
-          }],
-        };
-        setMessages((prev) => [...prev, errorMsg]);
+        setMessages((prev) => [
+          ...prev,
+          { id: `msg_${Date.now()}_a`, role: "assistant", content: `⚠️ **Provisioning Warning:** ${err.message}` }
+        ]);
+      } finally {
+        setLoading(false);
       }
       return;
     }
 
-    // 3. Standard AI Chat Fallback
-    void sendMessage({ text: trimmed }, { body: { snapshot } });
+    // 3. Standard AI Chat Route via /api/chat
+    const userMsg: ChatMessage = {
+      id: `msg_${Date.now()}_u`,
+      role: "user",
+      content: trimmed,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: trimmed,
+          primaryId: "gemini",
+          fallbackId: "openrouter",
+          snapshot,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch AI response.");
+
+      const replyText = data.text || data.message || data.reply || data.response || "No response received.";
+
+      const assistantMsg: ChatMessage = {
+        id: `msg_${Date.now()}_a`,
+        role: "assistant",
+        content: replyText,
+        providerUsed: data.providerUsed,
+        wasFallback: data.wasFallback,
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (err: any) {
+      console.error("AI chat error:", err);
+      toast.error(err.message || "The AI CTO could not respond.");
+      setMessages((prev) => [
+        ...prev,
+        { id: `msg_${Date.now()}_a`, role: "assistant", content: `⚠️ Error: ${err.message}` }
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -427,31 +392,22 @@ export function CtoAssistant() {
                         : "bg-surface-2 border border-border text-foreground rounded-bl-xs"
                     )}
                   >
-                    <div className="whitespace-pre-wrap">{textOf(message)}</div>
+                    <div className="whitespace-pre-wrap">{message.content}</div>
+                    {!isUser && message.providerUsed && (
+                      <div className="mt-1.5 text-[0.6rem] text-muted-foreground italic">
+                        Via {message.providerUsed} {message.wasFallback ? "(Fallback)" : ""}
+                      </div>
+                    )}
                     {!isUser && (
                       <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2">
                         <button
                           type="button"
                           onClick={async () => {
-                            const content = textOf(message);
-                            if (!content) return;
+                            if (!message.content) return;
                             try {
-                              if (navigator.clipboard && window.isSecureContext) {
-                                await navigator.clipboard.writeText(content);
-                              } else {
-                                const textArea = document.createElement("textarea");
-                                textArea.value = content;
-                                textArea.style.position = "fixed";
-                                textArea.style.left = "-999999px";
-                                document.body.appendChild(textArea);
-                                textArea.focus();
-                                textArea.select();
-                                document.execCommand("copy");
-                                textArea.remove();
-                              }
+                              await navigator.clipboard.writeText(message.content);
                               toast.success("Copied to clipboard!");
                             } catch (err) {
-                              console.error("Copy failed:", err);
                               toast.error("Failed to copy message");
                             }
                           }}
@@ -459,7 +415,6 @@ export function CtoAssistant() {
                         >
                           <Copy className="h-3 w-3" /> Copy
                         </button>
-
                         <button
                           type="button"
                           onClick={() => deleteMessage(message.id)}
@@ -474,12 +429,7 @@ export function CtoAssistant() {
               );
             })}
 
-            {status === "submitted" && <Shimmer className="text-xs">Jarvis provisioning workspace…</Shimmer>}
-            {error && (
-              <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                {error.message}
-              </p>
-            )}
+            {loading && <Shimmer className="text-xs">Jarvis is thinking and processing request…</Shimmer>}
           </ConversationContent>
           <ConversationScrollButton />
         </Conversation>
@@ -504,12 +454,13 @@ export function CtoAssistant() {
               }}
               placeholder="Paste Freelancer.com brief or prompt Jarvis…"
               rows={2}
+              disabled={loading}
               className="max-h-24 w-full resize-none bg-transparent px-2 py-1.5 text-xs outline-none text-foreground placeholder:text-muted-foreground"
             />
             <Button
               type="submit"
               size="sm"
-              disabled={!input.trim()}
+              disabled={!input.trim() || loading}
               className="h-8 w-8 shrink-0 p-0 rounded-lg brand-gradient text-primary-foreground cursor-pointer"
             >
               <Send className="h-3.5 w-3.5" />
