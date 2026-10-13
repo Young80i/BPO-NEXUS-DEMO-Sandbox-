@@ -9,7 +9,7 @@ interface AIProviderConfig {
 }
 
 const PRESET_PROVIDERS: AIProviderConfig[] = [
-  { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-2.0-flash" },
+  { id: "gemini", name: "Gemini Flash", defaultModel: "gemini-3.8-flash" },
   { id: "openrouter", name: "NVIDIA Nemotron", defaultModel: "nvidia/nemotron-3-super-120b-a12b:free" }
 ];
 
@@ -48,7 +48,8 @@ const extractText = (prompt: any): string => {
 
 const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
   "gemini": {
-    endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent`,
+    // Updated to point directly to the current active Gemini 3.8 Flash model
+    endpoint: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-3.8-flash'}:generateContent`,
     apiKey: process.env.GEMINI_API_KEY,
     headers: () => ({
       "Content-Type": "application/json",
@@ -77,7 +78,7 @@ const PROVIDER_ROUTES: Record<string, ProviderRoute> = {
       max_tokens: 1024,
     }),
     parseResponse: (data) => {
-      return data.choices?.[0]?.message?.content || "";
+      return data.choices?.[0]?.message?.content || data.choices?.[0]?.text || "";
     },
   },
 };
