@@ -283,11 +283,13 @@ JARVIS IS THE USER'S PROJECT COMMANDER, NOT THE FREELANCER.
 Your job is to turn an incoming client opportunity into a controlled, executable delivery process and guide the user through that process one verified step at a time.`;
 
 const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
+  // Using import.meta.env for Vite compatibility
+  apiKey: import.meta.env.VITE_OPENROUTER_API_KEY,
 });
 
 const gemini = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY!,
+  // Using import.meta.env for Vite compatibility
+  apiKey: import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY,
 });
 
 /**

@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/dialog";
 import { useProjects } from "@/lib/projects-store";
 import {
-
   formatMoney,
   priorities,
   statusOrder,
@@ -63,8 +62,6 @@ const views = [
   { key: "table", label: "Table", icon: Table2 },
   { key: "cards", label: "Cards", icon: LayoutGrid },
 ] as const;
-
-
 
 function clientName(id: string, list: { id: string; company: string }[]) {
   return list.find((c) => c.id === id)?.company ?? "Unassigned";
@@ -129,7 +126,7 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
       </div>
       <div className="mt-3">
         <div className="mb-1.5 flex items-center justify-between text-[0.7rem] text-muted-foreground">
-          <span>{project.progress}% complete</span>
+          <span className="font-semibold text-primary">{project.progress}% complete</span>
           <span>due {project.dueDate.slice(5)}</span>
         </div>
         <ProgressBar value={project.progress} />
@@ -143,8 +140,8 @@ function ProjectCard({ project, onEdit }: { project: Project; onEdit: (p: Projec
 }
 
 function ProjectsPage() {
- const { projects, create, update } = useProjects();
-const { clients } = useClients();
+  const { projects, create, update } = useProjects();
+  const { clients } = useClients();
   const [view, setView] = useState<(typeof views)[number]["key"]>("kanban");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("All");
@@ -168,40 +165,41 @@ const { clients } = useClients();
     );
   }, [projects, query, status, priority, showArchived]);
 
-const openCreate = () => {
-  setEditing(null);
+  const openCreate = () => {
+    setEditing(null);
 
-  if (clients.length === 0) {
-    toast.error("Create a client before creating a project");
-    return;
-  }
+    if (clients.length === 0) {
+      toast.error("Create a client before creating a project");
+      return;
+    }
 
-  setDraft({
-    name: "",
-    clientId: clients[0].id,
-    description: "",
-    budget: 10000,
-    currency: "USD",
-    priority: "Medium",
-    status: "Discovery",
-    startDate: "2026-08-01",
-    dueDate: "2026-11-01",
-    estimatedHours: 200,
-    actualHours: 0,
-    stack: [],
-    repository: "",
-    aiTool: "Lovable",
-    notes: "",
-    progress: 0,
-    archived: false,
-  });
-};
+    setDraft({
+      name: "",
+      clientId: clients[0].id,
+      description: "",
+      budget: 10000,
+      currency: "USD",
+      priority: "Medium",
+      status: "Discovery",
+      startDate: "2026-08-01",
+      dueDate: "2026-11-01",
+      estimatedHours: 200,
+      actualHours: 0,
+      stack: [],
+      repository: "",
+      aiTool: "Lovable",
+      notes: "",
+      progress: 0,
+      archived: false,
+    });
+  };
 
   const openEdit = (p: Project) => {
     setEditing(p);
     const { id: _id, ...rest } = p;
     setDraft(rest);
   };
+
   const save = async () => {
     if (!draft) return;
     if (!draft.name.trim()) return toast.error("Project name is required");
@@ -212,7 +210,7 @@ const openCreate = () => {
       if (editing) await update(editing.id, draft);
       else await create(draft);
     } catch {
-      return; // store already shows the error toast
+      return; // store handles error toast
     }
     setDraft(null);
     setEditing(null);
@@ -407,11 +405,40 @@ const openCreate = () => {
                   ))}
                 </select>
               </Field>
-              <Field label="Description" className="sm:col-span-2">
+
+              {/* Progress completion indicator slider & numeric control */}
+              <Field label={`Progress Completion (${draft.progress ?? 0}%)`} className="sm:col-span-2">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={draft.progress ?? 0}
+                    onChange={(e) => setDraft({ ...draft, progress: Number(e.target.value) })}
+                    className="w-full accent-primary cursor-pointer"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={draft.progress ?? 0}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        progress: Math.min(100, Math.max(0, Number(e.target.value))),
+                      })
+                    }
+                    className="field w-20 text-center font-mono"
+                  />
+                </div>
+              </Field>
+
+              <Field label="Description / Status Report" className="sm:col-span-2">
                 <textarea
                   className="field min-h-20 py-2"
                   value={draft.description}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                  placeholder="Summarize latest milestone progress or client deliverables..."
                 />
               </Field>
               <Field label="Budget">

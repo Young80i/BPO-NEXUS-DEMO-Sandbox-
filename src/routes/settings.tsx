@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
   Check,
@@ -24,6 +24,7 @@ import { PageHeader } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useClients } from "@/lib/clients-store";
 import { usePersistentState } from "@/lib/persist";
+import { supabase } from "@/lib/supabase/client"; // Added Supabase client
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -93,6 +94,7 @@ export function getActiveProviders(): { primary: AIProviderConfig; fallback: AIP
 
 export function SettingsPage() {
   const { clients } = useClients();
+  const navigate = useNavigate(); // Added TanStack Router navigation hook
 
   // General Profile State
   const [agencyName, setAgencyName] = usePersistentState("settings-agency-name", "BPO Nexus Agency");
@@ -150,13 +152,28 @@ export function SettingsPage() {
     toast.success(`Copied ${email} to clipboard`);
   };
 
-  const handleSignOut = () => {
-    toast.info("Signing out of workspace...");
-    setTimeout(() => {
-      window.location.href = "/";
-    }, 800);
-  };
+  // Upgraded async Sign Out function
+  const handleSignOut = async () => {
+    try {
+      toast.info("Signing out of workspace...");
+      
+      // 1. Kill the Supabase session
+      await supabase.auth.signOut();
+      
+      // 2. Clear local storage just in case you have custom auth tokens
+      localStorage.clear(); 
 
+      // 3. Force a hard browser reload to the root of your app
+      // This guarantees the React memory is wiped and the Auth Guard sees you as logged out
+      setTimeout(() => {
+        window.location.href = "/"; 
+      }, 500);
+
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Failed to sign out. Please try again.");
+    }
+  };
   const handleSaveGeneral = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success("Workspace profile saved successfully");

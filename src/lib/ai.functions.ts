@@ -31,6 +31,15 @@ const briefSchema = z.object({
       tool: z.string(),
     }),
   ),
+  // JARVIS WORKSTATION ADDITIONS:
+  proposal: z.string(),
+  executionPlan: z.array(z.string()),
+  prompts: z.array(
+    z.object({
+      tool: z.string(),
+      prompt: z.string(),
+    })
+  ),
 });
 
 export type BriefAnalysis = z.infer<typeof briefSchema>;
@@ -127,21 +136,34 @@ async function generateWithFallback<T>({
 }
 
 export const analyseBrief = async (data: { text: string }): Promise<BriefAnalysis> => {
-  // Validate input
+  // Validate input (This expects a clean { text: "..." } object now)
   z.object({ text: z.string().min(20) }).parse(data);
 
   const prompt = `You are a senior software architect and delivery lead for a solo AI agency working on Freelancer.com.
 
-Analyse this project description and produce a delivery plan.
+Analyse this project description and produce a delivery plan, a winning proposal, and ready-to-use AI prompts.
 
-Recommend only these tools:
-- Lovable
+CRITICAL PROPOSAL INSTRUCTIONS:
+Write a highly persuasive, professional bid addressed to the client. You MUST explicitly state that the project will be completed within 3 days, and guarantee that an initial concept version will be available within 24 hours. Make it sound warm, confident, and highly experienced.
+
+CRITICAL AI PROMPTS INSTRUCTIONS:
+Provide 3-5 highly detailed prompts tailored to this specific project to feed into your AI tools. 
+Assign the correct tool for each prompt:
+- Use 'Lovable' or 'v0' for UI/frontend generation prompts.
+- Use 'Cursor' or 'Claude' for logic, backend, or VS Code architectural prompts.
+- Use 'Microsoft Designer' or 'Midjourney' for visual assets and branding prompts.
+
+EXECUTION PLAN INSTRUCTIONS:
+Provide a 5-8 step chronological technical roadmap to execute and deliver this project aggressively.
+
+Recommend only these tools in the tech stack and tasks:
+- Lovable / v0
+- Cursor / Visual Studio Code
 - Claude
-- GitHub Desktop
-- Visual Studio Code
 - Node.js
+- Microsoft Designer
 
-Keep every list to at most 8 concise items.
+Keep every list (except executionPlan) to at most 8 concise items.
 Milestones must be at most 6.
 Tasks must be at most 12.
 
